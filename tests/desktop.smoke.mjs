@@ -1,0 +1,30 @@
+import {_electron as electron} from '@playwright/test';
+import assert from 'node:assert/strict';
+import {mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+const profile=await mkdtemp(path.join(tmpdir(),'nickshop-desktop-'));
+let application;
+const launch=()=>electron.launch({args:[...(process.platform==='linux'?['--no-sandbox']:[]),process.env.NICKSHOP_DESKTOP_APP||'.'],env:{...process.env,NICKSHOP_TEST_USER_DATA:profile,GEMINI_API_KEY:''},timeout:30000});
+try{
+ application=await launch();const page=await application.firstWindow();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.getByRole('heading',{name:'Chaque contenu, une opportunité.'}).waitFor();
+ assert.equal(await page.evaluate(()=>typeof window.require),'undefined');
+ assert.equal(await page.evaluate(()=>typeof window.process),'undefined');
+ const info=await page.evaluate(()=>window.nickshopDesktop.getInfo());assert.ok(info.version);assert.equal(info.keyConfigured,false);
+ const settings=await application.evaluate(({BrowserWindow})=>{const p=BrowserWindow.getAllWindows()[0].webContents.getLastWebPreferences();return {sandbox:p.sandbox,nodeIntegration:p.nodeIntegration,contextIsolation:p.contextIsolation};});
+ assert.deepEqual(settings,{sandbox:true,nodeIntegration:false,contextIsolation:true});
+ const result=await page.evaluate(async()=>{const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'copy',original:'Présentation NickShop'})});return response.json();});
+ assert.equal(result.mode,'template');assert.ok(result.result.Facebook.includes('Présentation NickShop'));
+ await page.getByRole('navigation').getByRole('button',{name:'Studio de contenu'}).click();
+ await page.getByLabel('Produit à mettre en lumière').selectOption('demo-1');
+ await page.getByRole('button',{name:'Générer mes publications'}).click();
+ await page.getByLabel('Texte Facebook').waitFor();assert.match(await page.getByLabel('Texte Facebook').inputValue(),/Éclat d’Ambre/);
+ await page.getByRole('button',{name:'Enregistrer',exact:true}).click();
+ await page.getByRole('navigation').getByRole('button',{name:'Paramètres',exact:true}).click();
+ await page.getByLabel('Clé API Gemini').waitFor();
+ await page.screenshot({path:process.env.DESKTOP_SCREENSHOT||path.join(tmpdir(),'nickshop-desktop-app.png')});
+ await application.close();application=await launch();const reopened=await application.firstWindow();
+ await reopened.getByRole('navigation').getByRole('button',{name:'Bibliothèque',exact:true}).click();await reopened.locator('.saved-copy').waitFor();assert.match(await reopened.locator('.saved-copy').innerText(),/Éclat d’Ambre/);
+ assert.deepEqual(errors,[]);console.log('PASS desktop: isolated renderer, local API, generation, native settings, persistent library after full restart.');
+}finally{await application?.close();await rm(profile,{recursive:true,force:true});}

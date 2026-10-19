@@ -1,0 +1,97 @@
+{
+  "name": "nickshop-content-studio",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --use-env-proxy server.mjs",
+    "build": "tsc -b && vite build",
+    "start": "NODE_ENV=production node --use-env-proxy server.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "test:e2e": "playwright test",
+    "desktop": "npm run build && npm run desktop:install-runtime && electron .",
+    "desktop:pack": "npm run build && electron-builder --dir",
+    "desktop:windows": "npm run build && electron-builder --win nsis --x64",
+    "desktop:linux": "npm run build && electron-builder --linux dir --x64",
+    "test:desktop": "node tests/desktop.smoke.mjs",
+    "desktop:install-runtime": "node node_modules/electron/install.js",
+    "desktop:windows:portable": "npm run build && electron-builder --win portable --x64"
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "@fontsource-variable/manrope": "^5.3.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.51.0",
+    "@tailwindcss/vite": "^4.1.0",
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.4.0",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "tailwindcss": "^4.1.0",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.0"
+  },
+  "description": "NickShop Content Studio — votre atelier marketing pour Windows",
+  "author": "NickShop",
+  "main": "desktop/main.cjs",
+  "build": {
+    "appId": "com.nickshop.contentstudio",
+    "productName": "NickShop Content Studio",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "desktop/**/*",
+      "src/domain.mjs",
+      "generation.mjs",
+      "package.json",
+      "build/icon.png"
+    ],
+    "asar": true,
+    "npmRebuild": false,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "signAndEditExecutable": true,
+      "artifactName": "NickShop-Content-Studio-Setup-${version}.${ext}",
+      "signExecutable": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "NickShop Content Studio",
+      "deleteAppDataOnUninstall": false,
+      "installerLanguages": [
+        "fr_FR",
+        "en_US"
+      ]
+    },
+    "linux": {
+      "target": "dir",
+      "icon": "build/icon.png",
+      "category": "Office"
+    },
+    "portable": {
+      "artifactName": "NickShop-Content-Studio-${version}-Windows.exe",
+      "requestExecutionLevel": "user"
+    }
+  }
+}

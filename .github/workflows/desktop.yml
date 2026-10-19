@@ -1,0 +1,33 @@
+name: Windows desktop installer
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:install-runtime
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:desktop
+      - run: npm run desktop:windows
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      - run: npm run desktop:windows:portable
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NickShop-Windows-x64
+          path: |
+            release/NickShop-Content-Studio-Setup-*.exe
+            release/NickShop-Content-Studio-*-Windows.exe
+            release/*.blockmap
+          if-no-files-found: error

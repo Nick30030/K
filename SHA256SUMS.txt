@@ -1,0 +1,2 @@
+ae52a43f5f38f54b99969557bed5fe4af3ec845195c1266cbc54e6c3afd609e1  NickShop-Content-Studio-1.0.0-Windows.exe
+8acd983e6fa5dcc6e15c77984013f51192b3f3a1c28fc00d9fc6f765f6c62286  NickShop-Content-Studio-1.0.0-Windows.zip

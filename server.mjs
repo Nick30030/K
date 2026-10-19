@@ -2,20 +2,25 @@ import http from 'node:http';
 import {readFile,stat} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {generate,validateInput} from './generation.mjs';
+import {generate,validateInput,generateImageFromReference} from './generation.mjs';
 const root=path.dirname(fileURLToPath(import.meta.url));
 // Load only the explicit local configuration file. It is ignored by Git.
 try { process.loadEnvFile(path.join(root,'.env')); } catch(e) { if(e.code!=='ENOENT')throw e; }
-const port=Number(process.env.PORT||5173),host=process.env.HOST||'127.0.0.1';
+const port=Number(process.env.PORT||3000),host=process.env.HOST||'0.0.0.0';
 const production=process.env.NODE_ENV==='production';
-const vite=production?null:await (await import('vite')).createServer({root,server:{middlewareMode:true},appType:'spa'});
+const vite=production?null:await (await import('vite')).createServer({root,server:{middlewareMode:true,allowedHosts:true},appType:'spa'});
 function json(res,status,body){res.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(body));}
-async function bodyJSON(req){let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>100000)throw Object.assign(Error('Requête trop volumineuse.'),{status:413});}try{return JSON.parse(raw);}catch{throw Object.assign(Error('JSON invalide.'),{status:400});}}
+async function bodyJSON(req){let raw='';for await(const chunk of req){raw+=chunk;if(Buffer.byteLength(raw)>10000000)throw Object.assign(Error('Requête trop volumineuse.'),{status:413});}try{return JSON.parse(raw);}catch{throw Object.assign(Error('JSON invalide.'),{status:400});}}
 
 let inFlight=0;let requests=[];
-const server=http.createServer(async(req,res)=>{const url=new URL(req.url,'http://localhost');if(url.pathname.startsWith('/api/')){const origin=req.headers.origin;const allowed=process.env.APP_ORIGIN;const actualOrigin=`http://${req.headers.host}`;
- if(origin&&origin!==actualOrigin&&origin!==allowed){json(res,403,{error:'Origine non autorisée.'});return;}
- if(url.pathname==='/api/status'&&req.method==='GET'){json(res,200,{textAI:Boolean(process.env.GEMINI_API_KEY),imageAI:false,storage:'local',auth:false});return;}
+const server=http.createServer(async(req,res)=>{const url=new URL(req.url,'http://localhost');if(url.pathname.startsWith('/api/')){const origin=req.headers.origin;const allowed=process.env.APP_ORIGIN;const hostHeader=req.headers.host;
+ if(origin){const originHost=origin.replace(/^https?:\/\//,'').replace(/\/$/,'');const isSameHost=originHost===hostHeader||origin===`http://${hostHeader}`||origin===`https://${hostHeader}`;if(allowed&&origin!==allowed&&!isSameHost){json(res,403,{error:'Origine non autorisée.'});return;}}
+ if(url.pathname==='/api/status'&&req.method==='GET'){json(res,200,{textAI:Boolean(process.env.GEMINI_API_KEY),imageAI:Boolean(process.env.GEMINI_API_KEY),storage:'local',auth:false});return;}
+ if(url.pathname==='/api/generate-image'&&req.method==='POST'){
+  if(!(req.headers['content-type']||'').includes('application/json')){json(res,415,{error:'Le contenu doit être JSON.'});return;}
+  try{const input=await bodyJSON(req);json(res,200,await generateImageFromReference(input));}catch(e){json(res,e.status||502,{error:e.message||'La génération d’image a échoué.'});}
+  return;
+ }
  if(url.pathname!=='/api/generate'||req.method!=='POST'){json(res,404,{error:'Route introuvable.'});return;}
  if(!(req.headers['content-type']||'').includes('application/json')){json(res,415,{error:'Le contenu doit être JSON.'});return;}
  requests=requests.filter(t=>t>Date.now()-60000);if(requests.length>=20||inFlight>=3){json(res,429,{error:'Trop de générations. Attendez un instant.'});return;}requests.push(Date.now());inFlight++;

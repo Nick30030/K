@@ -1,0 +1,7 @@
+{
+  "name": "NickShop — Content Studio",
+  "description": "Le studio marketing de NickShop. Créez, organisez et planifiez vos contenus pour Facebook, TikTok et WhatsApp.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
